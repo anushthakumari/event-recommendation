@@ -1,26 +1,26 @@
-const mongoose = require("mongoose");
-const EventBookings = require("../schemas/EventBookig.schema");
-const Events = require("../schemas/Events.schema");
 const Users = require("../schemas/Users.schema");
+const { runRecommendationSystem } = require("../services/recom.services");
 
 module.exports.find_event_bookings = async (req, res) => {
-	const userId = new mongoose.Types.ObjectId(req.query.id);
+	const userId = req.query.id; //new mongoose.Types.ObjectId(req.query.id);
 	const page = parseInt(req.query.page) || 1; // Default to page 1
 	const pageSize = parseInt(req.query.pageSize) || 10; // Default page size to 10
 
 	try {
-		const dt = await EventBookings.find({ user_id: userId });
+		const recom_events = await runRecommendationSystem(userId);
 
-		let recom_events = [];
+		// const dt = await EventBookings.find({ user_id: userId });
 
-		for (const row of dt) {
-			const d = await Events.find(
-				{ event_type_id: row.event_id },
-				{ title: 1, event_date: 1, event_type_id: 1 }
-			).populate("event_type_id", { _id: 1, title: 1, __v: -1 });
+		// let recom_events = [];
 
-			recom_events.push(...d);
-		}
+		// for (const row of dt) {
+		// 	const d = await Events.find(
+		// 		{ event_type_id: row.event_id },
+		// 		{ title: 1, event_date: 1, event_type_id: 1 }
+		// 	).populate("event_type_id", { _id: 1, title: 1, __v: -1 });
+
+		// 	recom_events.push(...d);
+		// }
 
 		// Apply pagination to recom_events array
 		const startIdx = (page - 1) * pageSize;
@@ -43,8 +43,6 @@ module.exports.find_event_bookings = async (req, res) => {
 };
 
 module.exports.login = async (req, res) => {
-	console.log(req.method);
-
 	const { username, password } = req.body;
 	try {
 		// Find the user by username
