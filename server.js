@@ -6,13 +6,16 @@ const eventsController = require("./controllers/events.controllers");
 
 const app = express();
 
-// app.use("/", (req, rs) => {
+//app.use("/", async(req, rs) => {
 // 	rs.end();
-// });
+ //});
 app.use(cors());
 app.use(express.json());
 app.use("/recommend", eventsController.find_event_bookings);
 app.post("/login", eventsController.login);
+app.post("/register", eventsController.register);
+app.get("/event-types", eventsController.get_event_types);
+app.put("/:id/interest", eventsController.set_interest);
 
 // Start the server
 const port = 5000; // You can change this to any port you prefer

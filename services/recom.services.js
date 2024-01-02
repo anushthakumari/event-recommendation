@@ -2,7 +2,7 @@ const User = require("../schemas/Users.schema");
 const Event = require("../schemas/Events.schema");
 const EventBooking = require("../schemas/EventBookig.schema");
 
-// Function to build a user-item matrix
+//build a user-item matrix
 const buildUserItemMatrix = (bookings) => {
 	const userIds = Array.from(
 		new Set(bookings.map((booking) => booking.user_id[0].toString()))
@@ -24,14 +24,14 @@ const buildUserItemMatrix = (bookings) => {
 	return { userIds, eventIds, userItemMatrix };
 };
 
-// Dot product function
+//Dot product
 const dot = (a, b) => a.map((x, i) => x * b[i]).reduce((acc, val) => acc + val);
 
-// Euclidean norm function
+//Euclidean norm
 const norm = (vector) =>
 	Math.sqrt(vector.map((x) => x * x).reduce((acc, val) => acc + val));
 
-// Function to perform collaborative filtering
+//perform collaborative filtering
 const collaborativeFiltering = (userItemMatrix, targetUserId) => {
 	const targetUserIndex = userItemMatrix.userIds.indexOf(targetUserId);
 	const targetUserVector = userItemMatrix.userItemMatrix[targetUserIndex];
@@ -52,7 +52,7 @@ const collaborativeFiltering = (userItemMatrix, targetUserId) => {
 	return similarityScores;
 };
 
-// Function to get collaborative filtering recommendations based on past bookings
+//get collaborative filtering recommendations based on past bookings
 const getCollaborativeFilteringRecommendations = async (
 	bookings,
 	targetUserId
@@ -69,10 +69,12 @@ const getCollaborativeFilteringRecommendations = async (
 			title: event.title,
 			event_date: event.event_date,
 			event_type: event.event_type_id[0].title,
+			event_time: event.event_time,
+			event_place: event.event_place,
 		}));
 	}
 
-	// Example: Recommend events from the most similar user
+	//Recommend events from the most similar user
 	const mostSimilarUser = similarUsers[0];
 	const recommendedEvents =
 		userItemMatrix.userItemMatrix[
@@ -94,7 +96,9 @@ const getCollaborativeFilteringRecommendations = async (
 					eventId: event.eventId,
 					title: eventDocument.title,
 					event_date: eventDocument.event_date,
-					event_type: eventDocument.event_type_id.title,
+					event_type: eventDocument.event_type_id[0].title,
+					event_time: eventDocument.event_time,
+			        event_place: eventDocument.event_place,
 				};
 			})
 	);
@@ -102,7 +106,7 @@ const getCollaborativeFilteringRecommendations = async (
 	return eventDetails;
 };
 
-// Function to get recommendations for a user
+//get recommendations for a user
 const getRecommendations = async (userId) => {
 	const user = await User.findById(userId).populate("interests");
 	const userInterests = user.interests.map((interest) =>
@@ -119,7 +123,9 @@ const getRecommendations = async (userId) => {
 			eventId: event._id.toString(),
 			title: event.title,
 			event_date: event.event_date,
-			event_type: event.event_type_id.title,
+			event_type: event.event_type_id[0].title,
+			event_time: event.event_time,
+			event_place: event.event_place,
 		}));
 	} else {
 		// If user has no selected interests, fall back to collaborative filtering based on past bookings

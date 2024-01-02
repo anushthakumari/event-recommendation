@@ -9,6 +9,10 @@ const EventsSchema = new mongoose.Schema({
 
 	event_date: Date,
 
+	event_time: String,
+
+	event_place:String,
+
 	event_type_id: [
 		{ type: mongoose.Schema.Types.ObjectId, ref: EventTypes.collection.name },
 	],
