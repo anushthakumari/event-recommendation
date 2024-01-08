@@ -1,6 +1,8 @@
 const User = require("../schemas/Users.schema");
 const Event = require("../schemas/Events.schema");
 const EventBooking = require("../schemas/EventBookig.schema");
+const EventBookings = require("../schemas/EventBookig.schema");
+const Events = require("../schemas/Events.schema");
 
 //build a user-item matrix
 const buildUserItemMatrix = (bookings) => {
@@ -30,6 +32,14 @@ const dot = (a, b) => a.map((x, i) => x * b[i]).reduce((acc, val) => acc + val);
 //Euclidean norm
 const norm = (vector) =>
 	Math.sqrt(vector.map((x) => x * x).reduce((acc, val) => acc + val));
+
+const shuffle = (array) => {
+	for (let i = array.length - 1; i > 0; i--) {
+		const j = Math.floor(Math.random() * (i + 1));
+		[array[i], array[j]] = [array[j], array[i]];
+	}
+	return array;
+};
 
 //perform collaborative filtering
 const collaborativeFiltering = (userItemMatrix, targetUserId) => {
@@ -98,7 +108,7 @@ const getCollaborativeFilteringRecommendations = async (
 					event_date: eventDocument.event_date,
 					event_type: eventDocument.event_type_id[0].title,
 					event_time: eventDocument.event_time,
-			        event_place: eventDocument.event_place,
+					event_place: eventDocument.event_place,
 				};
 			})
 	);
@@ -119,7 +129,11 @@ const getRecommendations = async (userId) => {
 			event_type_id: { $in: userInterests },
 		}).populate("event_type_id");
 
-		return eventsBasedOnInterests.map((event) => ({
+		const diverseEvents = await getDiverseEvents();
+
+		const allEvents = shuffle([...eventsBasedOnInterests, ...diverseEvents]);
+
+		return allEvents.map((event) => ({
 			eventId: event._id.toString(),
 			title: event.title,
 			event_date: event.event_date,
@@ -143,10 +157,93 @@ const getRecommendations = async (userId) => {
 
 const runRecommendationSystem = async (targetUserId = "") => {
 	const recommendations = await getRecommendations(targetUserId);
-
 	return recommendations;
+};
+
+const interestBasedEvents = async (userId) => {
+	try {
+		const user = await User.findById(userId).populate("interests");
+		const userInterests = user.interests.map((interest) =>
+			interest._id.toString()
+		);
+
+		const eventsBasedOnInterests = await Event.find({
+			event_type_id: { $in: userInterests },
+		}).populate("event_type_id");
+
+		const diverseEvents = await getDiverseEvents();
+
+		const allEventsSet = [...eventsBasedOnInterests, ...diverseEvents];
+
+		const allEvents = Array.from(allEventsSet);
+
+		return allEvents.map((event) => {
+			return {
+				eventId: event._id.toString(),
+				title: event.title,
+				event_date: event.event_date,
+				event_type: event.event_type_id[0].title,
+				event_time: event.event_time,
+				event_place: event.event_place,
+			};
+		});
+	} catch (error) {
+		console.error("Error recommending events with variety:", error.message);
+		throw error;
+	}
+};
+
+// Function to fetch diverse events based on recent additions (customize this logic)
+const getDiverseEvents = async () => {
+	try {
+		const diverseEvents = await Event.find({})
+			.populate("event_type_id")
+			.sort({ event_date: -1 })
+			.limit(10);
+
+		return diverseEvents;
+	} catch (error) {
+		console.error("Error fetching diverse events:", error.message);
+		throw error;
+	}
+};
+
+const runContentBasedRecomm = async (user_id) => {
+	const userId = user_id;
+	const dt = await EventBookings.find({ user_id: userId });
+
+	let recom_events = [];
+
+	//for the new users
+	if (!dt.length) {
+		return await interestBasedEvents(user_id);
+	}
+
+	//for past users
+	for (const row of dt) {
+		const d = await Events.find({ event_type_id: row.event_id }).populate(
+			"event_type_id",
+			{ _id: 1, title: 1, __v: -1 }
+		);
+
+		recom_events.push(...d);
+	}
+
+	const diverse_events = await getDiverseEvents();
+
+	recom_events.push(...diverse_events);
+
+	return shuffle(recom_events).map((event) => ({
+		eventId: event._id.toString(),
+		title: event.title,
+		event_date: event.event_date,
+		event_type: event.event_type_id[0].title,
+		event_time: event.event_time,
+		event_place: event.event_place,
+	}));
 };
 
 module.exports = {
 	runRecommendationSystem,
+	runContentBasedRecomm,
 };
